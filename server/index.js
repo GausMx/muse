@@ -4,14 +4,10 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import { notFound, errorHandler } from "./middleware/error.js";
 import authRoutes from "./routes/auth.js";
-
+import productRoutes from "./routes/products.js";
 
 
 dotenv.config();
-
-const app = express();
-app.use(express.json());
-app.use("/api/auth", authRoutes);
 //CORS Middleware
 app.use(
   cors({
@@ -19,6 +15,12 @@ app.use(
     credentials:true,
   })
 )
+const app = express();
+app.use(express.json());
+app.use("/api/auth", authRoutes);
+
+app.use("/uploads", express.static("uploads"));
+app.use("/api/products", productRoutes);
 //connect to database
 connectDB();
 
