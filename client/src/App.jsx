@@ -11,9 +11,10 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
-      <h1>Muse Api test</h1>
-      <h3>{message}</h3>
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <h1 className="text-4cxl font-bold text-purple-500">
+        Tailwind is live 🚀
+      </h1>
     </div>
   );
 }
