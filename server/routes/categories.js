@@ -1,5 +1,5 @@
 import express from "express";
-import { protect, adminOnly } from "../middleware/auth.js";
+import { protect, admin } from "../middleware/auth.js";
 import { upload } from "../middleware/upload.js";
 import {
   createCategory,
@@ -17,7 +17,7 @@ router.get("/:id/products", getProductsByCategory);
 router.post(
   "/",
   protect,
-  adminOnly,
+  admin,
   upload.single("image"),
   createCategory
 );
@@ -25,11 +25,11 @@ router.post(
 router.put(
   "/:id",
   protect,
-  adminOnly,
+  admin,
   upload.single("image"),
   updateCategory
 );
 
-router.delete("/:id", protect, adminOnly, deleteCategory);
+router.delete("/:id", protect, admin, deleteCategory);
 
 export default router;

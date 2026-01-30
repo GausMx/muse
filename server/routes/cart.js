@@ -4,6 +4,7 @@ import {
   getCart,
   addToCart,
   removeFromCart,
+  syncCart
 } from "../controllers/cart.js";
 
 const router = express.Router();
