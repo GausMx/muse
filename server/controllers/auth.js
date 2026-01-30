@@ -53,7 +53,6 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-import crypto from "crypto";
 
 export const generateResetToken = async (user) => {
   const resetToken = crypto.randomBytes(20).toString("hex");
