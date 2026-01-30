@@ -1,22 +1,16 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
-function App() {
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    axios.get("http://localhost:5000/api/test")
-      .then(response => setMessage(response.data))
-      .catch(error => setMessage("Api call failed"));
-  }, []);
-
+export default function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
-      <h1 className="text-4cxl font-bold text-purple-500">
-        Tailwind is live 🚀
-      </h1>
-    </div>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+    </Routes>
   );
 }
-
-export default App;

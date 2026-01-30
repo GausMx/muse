@@ -1,16 +1,29 @@
-// server/models/Cart.js
 import mongoose from "mongoose";
 
 const cartItemSchema = new mongoose.Schema({
-  product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-  variant: { type: mongoose.Schema.Types.ObjectId }, // optional, points to variant
-  quantity: { type: Number, default: 1 },
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
+  },
+  variantId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1,
+  },
 });
 
 const cartSchema = new mongoose.Schema(
   {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // registered user
-    session: String, // for guest carts
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      unique: true,
+    },
     items: [cartItemSchema],
   },
   { timestamps: true }

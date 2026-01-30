@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.js";
 import productRoutes from "./routes/products.js";
 import categoryRoutes from "./routes/categories.js";
 import orderRoutes from "./routes/orders.js";
+import cartRoutes from "./routes/cart.js";
 
 dotenv.config();
 //CORS Middleware
@@ -23,6 +24,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/uploads", express.static("uploads"));
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
 //connect to database
 connectDB();
 
