@@ -2,38 +2,77 @@ import Category from "../models/Category.js";
 import Product from "../models/Product.js";
 
 export const createCategory = async (req, res) => {
-  const category = await Category.create({
-    ...req.body,
-    image: req.file ? `/uploads/${req.file.filename}` : null,
-  });
-  res.status(201).json(category);
+  try {
+    console.log("Request body:", req.body);
+    console.log("File:", req.file);
+
+    // Generate slug in controller instead of model
+    const slug = req.body.name.toLowerCase().replace(/\s+/g, "-");
+
+    const category = await Category.create({
+      name: req.body.name,
+      slug: slug,
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      description: req.body.description,
+    });
+    
+    res.status(201).json(category);
+  } catch (error) {
+    console.error("Create category error:", error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export const getCategories = async (req, res) => {
-  const categories = await Category.find();
-  res.json(categories);
+  try {
+    const categories = await Category.find();
+    res.json(categories);
+  } catch (error) {
+    console.error("Get categories error:", error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export const updateCategory = async (req, res) => {
-  const category = await Category.findById(req.params.id);
-  if (!category) return res.status(404).json({ message: "Not found" });
+  try {
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ message: "Not found" });
 
-  Object.assign(category, req.body);
-  if (req.file) category.image = `/uploads/${req.file.filename}`;
+    // Generate new slug if name changed
+    if (req.body.name && req.body.name !== category.name) {
+      req.body.slug = req.body.name.toLowerCase().replace(/\s+/g, "-");
+    }
 
-  await category.save();
-  res.json(category);
+    Object.assign(category, req.body);
+    if (req.file) category.image = `/uploads/${req.file.filename}`;
+
+    await category.save();
+    res.json(category);
+  } catch (error) {
+    console.error("Update category error:", error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export const deleteCategory = async (req, res) => {
-  await Category.findByIdAndDelete(req.params.id);
-  res.json({ message: "Category deleted" });
+  try {
+    await Category.findByIdAndDelete(req.params.id);
+    res.json({ message: "Category deleted" });
+  } catch (error) {
+    console.error("Delete category error:", error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export const getProductsByCategory = async (req, res) => {
-  const products = await Product.find({
-    category: req.params.id,
-    isActive: true,
-  });
-  res.json(products);
+  try {
+    const products = await Product.find({
+      category: req.params.id,
+      isActive: true,
+    });
+    res.json(products);
+  } catch (error) {
+    console.error("Get products by category error:", error);
+    res.status(500).json({ message: error.message });
+  }
 };

@@ -1,0 +1,8 @@
+[build]
+  base = "client"
+  command = "npm install && npm run build"
+  publish = "client/dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  SECRETS_SCAN_OMIT_KEYS = "VITE_API_URL"

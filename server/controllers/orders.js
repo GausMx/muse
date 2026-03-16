@@ -1,69 +1,182 @@
-import Product from "../models/Product.js";
 import Order from "../models/Order.js";
-import mongoose from "mongoose";
+import Product from "../models/Product.js";
 
+// CREATE ORDER (from checkout)
 export const createOrder = async (req, res) => {
-  const { items, shippingAddress, paymentMethod } = req.body;
-
-  // items = [{ product, variantId, quantity }]
-
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    let orderItems = [];
-    let total = 0;
+    const { items, total, shippingAddress, paymentMethod, paymentReference, paymentStatus } = req.body;
 
+    // Validate stock before creating order
     for (const item of items) {
-      const product = await Product.findById(item.product).session(session);
-      if (!product) throw new Error("Product not found");
-
-      const variant = product.variants.id(item.variantId);
-      if (!variant) throw new Error("Variant not found");
-
-      // 🔴 STOCK VALIDATION
-      if (variant.stock < item.quantity) {
-        throw new Error(
-          `Insufficient stock for ${product.name} (${variant.size}/${variant.color})`
-        );
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({ message: `Product ${item.product} not found` });
       }
 
-      // 🔻 STOCK REDUCTION
-      variant.stock -= item.quantity;
-
-      total += variant.price * item.quantity;
-
-      orderItems.push({
-        product: product._id,
-        variant: item.variantId,
-        quantity: item.quantity,
-        price: variant.price,
-      });
-
-      await product.save({ session });
+      if (item.variantId) {
+        const variant = product.variants.id(item.variantId);
+        if (!variant) {
+          return res.status(404).json({ message: "Variant not found" });
+        }
+        if (variant.stock < item.quantity) {
+          return res.status(400).json({ 
+            message: `Not enough stock for ${product.name}. Only ${variant.stock} available.` 
+          });
+        }
+      } else {
+        // Product without variants
+        if ((product.stock || 0) < item.quantity) {
+          return res.status(400).json({ 
+            message: `Not enough stock for ${product.name}. Only ${product.stock} available.` 
+          });
+        }
+      }
     }
 
-    const order = await Order.create(
-      [
-        {
-          user: req.user.userId,
-          items: orderItems,
-          total,
-          shippingAddress,
-          paymentMethod,
-          status: "pending",
-        },
-      ],
-      { session }
-    );
+    // Create order
+    const order = await Order.create({
+      user: req.user._id,
+      items,
+      total,
+      shippingAddress,
+      paymentMethod,
+      paymentReference,
+      paymentStatus: paymentStatus || "pending",
+      status: "Pending"
+    });
 
-    await session.commitTransaction();
-    session.endSession();
+    // Reduce stock
+    for (const item of items) {
+      const product = await Product.findById(item.product);
+      
+      if (item.variantId) {
+        const variant = product.variants.id(item.variantId);
+        variant.stock -= item.quantity;
+      } else {
+        product.stock -= item.quantity;
+      }
+      
+      await product.save();
+    }
 
-    res.status(201).json(order[0]);
+    // Populate product details before returning
+    await order.populate('items.product');
+
+    res.status(201).json(order);
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
-    res.status(400).json({ message: err.message });
+    console.error("Create order error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET USER'S ORDERS
+export const getUserOrders = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user.userId })
+      .populate('items.product')
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET ALL ORDERS (Admin only)
+export const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate('items.product')
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET SINGLE ORDER
+export const getOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('items.product')
+      .populate('user', 'name email');
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Users can only view their own orders, admins can view all
+    if (order.user._id.toString() !== req.user.userId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// UPDATE ORDER STATUS (Admin only)
+export const updateOrderStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    order.status = status;
+    await order.save();
+
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// CANCEL ORDER (User can cancel if status is Pending)
+export const cancelOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Check authorization
+    if (order.user.toString() !== req.user.userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    // Can only cancel pending orders
+    if (order.status !== "Pending") {
+      return res.status(400).json({ 
+        message: "Can only cancel orders with Pending status" 
+      });
+    }
+
+    order.status = "Cancelled";
+    await order.save();
+
+    // Restore stock
+    for (const item of order.items) {
+      const product = await Product.findById(item.product);
+      
+      if (item.variantId) {
+        const variant = product.variants.id(item.variantId);
+        variant.stock += item.quantity;
+      } else {
+        product.stock += item.quantity;
+      }
+      
+      await product.save();
+    }
+
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 };

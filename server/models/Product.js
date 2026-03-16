@@ -32,6 +32,12 @@ const productSchema = new mongoose.Schema(
 
     variants: [variantSchema],
 
+    // Stock for products without variants
+    stock: {
+      type: Number,
+      default: 0,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
