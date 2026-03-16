@@ -1,13 +1,31 @@
-import { useCart } from "./CartContext.jsx"; // import cart context
+import { createContext, useContext, useState } from "react"; 
+import { useCart } from "./CartContext.jsx";
+import api from "../utils/api.js";
+
+const AuthContext = createContext();
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user"))
-  );
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      if (!stored || stored === "undefined") return null; // ✅ Check for "undefined" string
+      return JSON.parse(stored);
+    } catch (error) {
+      console.error("Error parsing user from localStorage:", error);
+      return null;
+    }
+  });
 
-  const { cart, clearCart, setCart } = useCart(); // access local cart
+  const { cart, clearCart, setCart } = useCart();
 
   const login = async (data) => {
+    if (!data.token || !data.user) {
+      console.error("Invalid login data:", data);
+      return;
+    }
+
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
@@ -15,16 +33,29 @@ export const AuthProvider = ({ children }) => {
     // Sync localStorage cart to backend
     if (cart.length > 0) {
       try {
-        await Promise.all(
-          cart.map(item =>
-            api.post("/cart", {
-              productId: item.productId,
-              variantId: item.variantId,
-              quantity: item.quantity,
-            })
-          )
-        );
-        clearCart(); // clear local cart after syncing
+        await api.post("/cart/sync", {
+          items: cart.map(i => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+          })),
+        });
+
+        const cartRes = await api.get("/cart");
+
+        const mapped = cartRes.data.items.map(i => {
+          const variant = i.product.variants.find(v => v._id === i.variantId);
+          return {
+            productId: i.product._id,
+            variantId: i.variantId,
+            quantity: i.quantity,
+            name: i.product.name,
+            image: i.product.images[0],
+            price: variant?.price || i.product.basePrice,
+          };
+        });
+
+        setCart(mapped);
       } catch (err) {
         console.error("Failed to sync cart:", err);
       }
