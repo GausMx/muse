@@ -15,14 +15,26 @@ dotenv.config();
 
 const app = express();
 
-// CORS Middleware
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-  })
-);
 
+const allowedOrigins = [
+  'https://muse-abaya-store.netlify.app', // Your Netlify domain
+  process.env.CLIENT_URL, // Local development
+  process.env.SERVER_URL, // Alternative local port
+  process.env.VITE_API_URL // Alternative local port
+].filter(Boolean); // Remove any undefined values
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS policy violation'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // Routes
@@ -32,7 +44,6 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/admin/products", adminProductRoutes);
-app.use("/uploads", express.static("uploads"));
 
 app.get("/api/test", (req, res) => {
   res.send("Muse backend running 🚀");

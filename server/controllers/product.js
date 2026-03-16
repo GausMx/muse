@@ -5,7 +5,8 @@ import slugify from "slugify";
 export const createProduct = async (req, res) => {
   const { name, description, category, basePrice, variants } = req.body;
 
-  const images = req.files?.map(file => `/uploads/${file.filename}`);
+  // ✅ Changed: Use file.path for Cloudinary URLs
+  const images = req.files?.map(file => file.path);
 
   try {
     // Parse variants, handle empty array case
@@ -78,8 +79,9 @@ export const updateProduct = async (req, res) => {
       updates.slug = slugify(updates.name, { lower: true });
     }
 
+    // ✅ Changed: Use file.path for Cloudinary URLs
     if (req.files?.length) {
-      updates.images = req.files.map(file => `/uploads/${file.filename}`);
+      updates.images = req.files.map(file => file.path);
     }
 
     if (updates.variants) {
